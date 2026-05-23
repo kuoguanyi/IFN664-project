@@ -64,7 +64,6 @@ free_all_fragments( struct fragment_s * top_fragment )
 
 /* ─────────────────────────────────────────────────────
    PART 2: Convert linked list → array
-   (easier to work with for our algorithm)
    ───────────────────────────────────────────────────── */
 
 /* count how many fragments are in the linked list */
@@ -85,7 +84,7 @@ list_to_array( struct fragment_s * top, int n )
   char ** arr = malloc( n * sizeof(char *) );
   assert( arr != NULL );
   for( int i = n - 1; i >= 0; i-- ) {
-    arr[i] = strdup( top->fragment_string );   /* strdup makes a fresh copy */
+    arr[i] = strdup( top->fragment_string );   
     top = top->next_fragment;
   }
   return arr;
@@ -139,13 +138,18 @@ int remove_contained( char ** arr, int n )
       if( i == j ) continue;
       /* if arr[i] appears inside arr[j], mark i for removal */
       if( strstr( arr[j], arr[i] ) != NULL ) {
-        drop[i] = true;
-        break;
+       size_t len_i = strlen( arr[i] );
+       size_t len_j = strlen( arr[j] );
+
+      if( len_i < len_j || ( len_i == len_j && i > j ) ) {
+       drop[i] = true;
+       break;
+        }
       }
     }
   }
 
-  /* compact the array: shift surviving fragments to the front */
+  /* Compress the array: Move the remaining fragments to the front of the array.*/
   int new_n = 0;
   for( int i = 0; i < n; i++ ) {
     if( !drop[i] ) {
@@ -158,7 +162,7 @@ int remove_contained( char ** arr, int n )
   }
 
   free( drop );
-  return new_n;   /* new fragment count after removal */
+  return new_n;   /* New fragment count after removal */
 }
 
 /* ─────────────────────────────────────────────────────
@@ -183,7 +187,7 @@ build_overlap_matrix( char ** arr, int n )
 
     for( int j = 0; j < n; j++ ) {
       if( i == j )
-        matrix[i][j] = 0;          /* a fragment can't overlap with itself */
+        matrix[i][j] = 0;          /* Fragments cannot overlap with themselves */
       else
         matrix[i][j] = compute_overlap( arr[i], arr[j] );
     }
@@ -216,8 +220,8 @@ merge_two( const char *A, const char *B, int overlap )
   char * result = malloc( new_len + 1 );
   assert( result != NULL );
 
-  memcpy( result, A, lenA );                    /* copy all of A */
-  memcpy( result + lenA, B + overlap, lenB - overlap ); /* append B minus overlap */
+  memcpy( result, A, lenA );                    
+  memcpy( result + lenA, B + overlap, lenB - overlap ); 
   result[new_len] = '\0';
   return result;
 }
@@ -226,7 +230,7 @@ merge_two( const char *A, const char *B, int overlap )
    PART 7: greedy_reconstruct(arr, n)
 
    Main greedy algorithm:
-   1. Find the pair (i,j) with maximum overlap
+   1. Find the pair of elements (i, j) with the largest overlap.
    2. Merge them into one new fragment
    3. Repeat until only one fragment remains
    ───────────────────────────────────────────────────── */
@@ -234,13 +238,13 @@ merge_two( const char *A, const char *B, int overlap )
 char *
 greedy_reconstruct( char ** arr, int n )
 {
-  /* work on a local copy so we don't destroy the original */
+  /* Perform the operation on the local copy so that we don't corrupt the original copy.*/
   char ** frags = malloc( n * sizeof(char *) );
   assert( frags != NULL );
   for( int i = 0; i < n; i++ )
     frags[i] = strdup( arr[i] );
 
-  int count = n;   /* number of fragments still remaining */
+  int count = n;   /* Number of remaining fragments */
 
   while( count > 1 ) {
 
@@ -265,14 +269,14 @@ greedy_reconstruct( char ** arr, int n )
     free( frags[best_i] );
     free( frags[best_j] );
 
-    /* put merged at position best_i,
-       fill the gap left by best_j with the last fragment */
+    /* Place the merged data in the position of best_i,
+       and fill the blank left in best_j with the last fragment. */
     frags[best_i] = merged;
     frags[best_j] = frags[count - 1];
     count--;
   }
 
-  /* the single remaining fragment is our answer */
+  /* The only remaining fragment is our answer. */
   char * result = frags[0];
   free( frags );   /* free the array but NOT frags[0] — caller owns it */
   return result;
@@ -316,7 +320,7 @@ greedy_order( char ** arr, int n )
       }
     }
 
-    /* attach chain best_j after the tail of chain best_i */
+    /* Append the chain best_j to the end of the chain best_i. */
     chain_next[chain_tail[best_i]] = best_j;
     chain_tail[best_i] = chain_tail[best_j];
     active[best_j] = 0;
@@ -327,7 +331,7 @@ greedy_order( char ** arr, int n )
   int head = 0;
   while( !active[head] ) head++;
 
-  /* walk the chain and collect fragments in order */
+  /* walk the chain and collect fragments in the order */
   char ** result = malloc( n * sizeof(char *) );
   int pos = 0, cur = head;
   while( cur != -1 ) {
@@ -348,7 +352,7 @@ greedy_order( char ** arr, int n )
    until no swap produces a shorter merged string.
    ───────────────────────────────────────────────────── */
 
-/* compute total length if we merge arr[0..n-1] in order */
+/* Calculate the total length of sequentially merging arr[0..n-1]. */
 int compute_total_length( char ** arr, int n )
 {
   int total = strlen( arr[0] );
@@ -416,9 +420,9 @@ two_opt_improve( char ** arr, int n )
   return result;
 }
 
-/* ─────────────────────────────────────────────────────
-   TEST MAIN (temporary — we'll replace this later)
-   ───────────────────────────────────────────────────── */
+/* ───────────────────────────────────────────────────────────────
+   main: reads fragments, runs greedy + 2-opt, outputs best result
+   ─────────────────────────────────────────────────────────────── */
 
 int main( int argc, char * argv[] )
 {
@@ -455,25 +459,29 @@ int main( int argc, char * argv[] )
 
   /* step 3: greedy merge for quick result */
   char * greedy_result = greedy_reconstruct( arr, new_n );
-  fprintf( stderr, "Greedy solution (length %zu): %s\n",
-           strlen(greedy_result), greedy_result );
 
   /* step 4: 2-opt improvement */
   char * final_result = two_opt_improve( ordered, new_n );
-  fprintf( stderr, "2-opt  solution (length %zu): %s\n",
-           strlen(final_result), final_result );
 
-  /* output the shorter of the two */
-  if( strlen(greedy_result) <= strlen(final_result) )
-    printf( "%s\n", greedy_result );
+  /* output the best result found */
+  char * best_result;
+
+  if( strlen( greedy_result ) <= strlen( final_result ) )
+    best_result = greedy_result;
   else
-    printf( "%s\n", final_result );
+    best_result = final_result;
+
+  printf( "%s\n", best_result );
 
   /* cleanup */
   free( greedy_result );
   free( final_result );
-  for( int i = 0; i < new_n; i++ ) free( ordered[i] );
+
+  for( int i = 0; i < new_n; i++ )
+    free( ordered[i] );
+
   free( ordered );
   free_array( arr, new_n );
+
   return 0;
 }
